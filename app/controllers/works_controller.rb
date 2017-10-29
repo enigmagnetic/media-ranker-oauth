@@ -102,7 +102,7 @@ class WorksController < ApplicationController
       end
     else
       flash[:result_text] = "You must log in to do that"
-      status = :unauthorized
+      flash[:status] = :failure
     end
 
     # Refresh the page to show either the updated vote count
