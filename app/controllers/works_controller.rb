@@ -17,21 +17,30 @@ class WorksController < ApplicationController
   end
 
   def new
-    @work = Work.new
+    if find_user
+      @work = Work.new
+    else
+      flash[:status] = :failure
+      flash[:result_text] = "You must be logged in to add media!"
+      redirect_to root_path
+    end
   end
 
   def create
-    @work = Work.new(media_params)
-    @media_category = @work.category
-    if @work.save
-      flash[:status] = :success
-      flash[:result_text] = "Successfully created #{@media_category.singularize} #{@work.id}"
-      redirect_to work_path(@work)
-    else
-      flash[:status] = :failure
-      flash[:result_text] = "Could not create #{@media_category.singularize}"
-      flash[:messages] = @work.errors.messages
-      render :new, status: :bad_request
+    if find_user
+      @work = Work.new(media_params)
+      @media_category = @work.category
+      @work.user_id = session[:user_id]
+      if @work.save
+        flash[:status] = :success
+        flash[:result_text] = "Successfully created #{@media_category.singularize} #{@work.id}"
+        redirect_to work_path(@work)
+      else
+        flash[:status] = :failure
+        flash[:result_text] = "Could not create #{@media_category.singularize}"
+        flash[:messages] = @work.errors.messages
+        render :new, status: :bad_request
+      end
     end
   end
 
@@ -40,6 +49,11 @@ class WorksController < ApplicationController
   end
 
   def edit
+    unless find_user && session[:user_id] == @work.user_id
+      flash[:status] = :failure
+      flash[:result_text] = "You must own the work to edit it."
+      redirect_to work_path(@work)
+    end
   end
 
   def update
@@ -57,10 +71,16 @@ class WorksController < ApplicationController
   end
 
   def destroy
-    @work.destroy
-    flash[:status] = :success
-    flash[:result_text] = "Successfully destroyed #{@media_category.singularize} #{@work.id}"
-    redirect_to root_path
+    if find_user && session[:user_id] == @work.user_id
+      @work.destroy
+      flash[:status] = :success
+      flash[:result_text] = "Successfully destroyed #{@media_category.singularize} #{@work.id}"
+      redirect_to root_path
+    else
+      flash[:status] = :failure
+      flash[:result_text] = "You must own the work to delete it."
+      redirect_to work_path(@work)
+    end
   end
 
   def upvote
@@ -90,7 +110,7 @@ class WorksController < ApplicationController
     redirect_back fallback_location: work_path(@work), status: status
   end
 
-private
+  private
   def media_params
     params.require(:work).permit(:title, :category, :creator, :description, :publication_year)
   end
